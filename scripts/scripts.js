@@ -1,4 +1,5 @@
 import {
+  sampleRUM,
   buildBlock,
   loadHeader,
   loadFooter,
@@ -7,13 +8,12 @@ import {
   decorateSections,
   decorateBlocks,
   decorateTemplateAndTheme,
-  getMetadata,
-  waitForFirstImage,
-  loadSection,
-  loadSections,
+  waitForLCP,
+  loadBlocks,
   loadCSS,
-  sampleRUM,
 } from './aem.js';
+
+const LCP_BLOCKS = []; // add your LCP blocks to the list
 
 /**
  * Builds hero block and prepends to main in a new section.
@@ -42,24 +42,13 @@ async function loadFonts() {
   }
 }
 
-function autolinkModals(doc) {
-  doc.addEventListener('click', async (e) => {
-    const origin = e.target.closest('a');
-    if (origin && origin.href && origin.href.includes('/modals/')) {
-      e.preventDefault();
-      const { openModal } = await import(`${window.hlx.codeBasePath}/blocks/modal/modal.js`);
-      openModal(origin.href);
-    }
-  });
-}
-
 /**
  * Builds all synthetic blocks in a container element.
  * @param {Element} main The container element
  */
 function buildAutoBlocks(main) {
   try {
-    if (!main.querySelector('.hero')) buildHeroBlock(main);
+    // buildHeroBlock(main);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Auto Blocking failed', error);
@@ -85,19 +74,14 @@ export function decorateMain(main) {
  * @param {Element} doc The container element
  */
 async function loadEager(doc) {
-  doc.documentElement.lang = 'en';
+  document.documentElement.lang = 'en';
   decorateTemplateAndTheme();
-  if (getMetadata('breadcrumbs').toLowerCase() === 'true') {
-    doc.body.dataset.breadcrumbs = true;
-  }
   const main = doc.querySelector('main');
   if (main) {
     decorateMain(main);
-    doc.body.classList.add('appear');
-    await loadSection(main.querySelector('.section'), waitForFirstImage);
+    document.body.classList.add('appear');
+    await waitForLCP(LCP_BLOCKS);
   }
-
-  sampleRUM.enhance();
 
   try {
     /* if desktop (proxy for fast connection) or fonts already loaded, load fonts.css */
@@ -114,10 +98,8 @@ async function loadEager(doc) {
  * @param {Element} doc The container element
  */
 async function loadLazy(doc) {
-  autolinkModals(doc);
-
   const main = doc.querySelector('main');
-  await loadSections(main);
+  await loadBlocks(main);
 
   const { hash } = window.location;
   const element = hash ? doc.getElementById(hash.substring(1)) : false;
@@ -128,6 +110,10 @@ async function loadLazy(doc) {
 
   loadCSS(`${window.hlx.codeBasePath}/styles/lazy-styles.css`);
   loadFonts();
+
+  sampleRUM('lazy');
+  sampleRUM.observe(main.querySelectorAll('div[data-block-name]'));
+  sampleRUM.observe(main.querySelectorAll('picture > img'));
 }
 
 /**
@@ -140,35 +126,18 @@ function loadDelayed() {
   // load anything that can be postponed to the latest here
 }
 
-async function loadSidekick() {
-  if (document.querySelector('aem-sidekick')) {
-    import('./sidekick.js');
-    return;
-  }
-
-  document.addEventListener('sidekick-ready', () => {
-    import('./sidekick.js');
-  });
-}
-
 async function loadPage() {
   await loadEager(document);
   await loadLazy(document);
   loadDelayed();
-  loadSidekick();
 }
 
-// DA Live Preview
+// Side-effects
 (async function loadDa() {
-  if (!new URL(window.location.href).searchParams.get('dapreview')) return;
-  // eslint-disable-next-line import/no-unresolved
-  import('https://da.live/scripts/dapreview.js').then(({ default: daPreview }) => daPreview(loadPage));
+  const daPreview = new URL(window.location.href).searchParams.get('dapreview');
+  if (!daPreview) return;
+  const origin = daPreview === 'local' ? 'http://localhost:3000' : 'https://lporg--da-live--adobe.aem.live';
+  import(`${origin}/scripts/dapreview.js`).then(({ default: daPreview }) => daPreview(loadPage));
 }());
-
-// (async function loadEdit() {
-//   const html = document.body.outerHTML;
-//   const init = (await import('./context.js')).default;
-//   init(html);
-// }());
 
 loadPage();

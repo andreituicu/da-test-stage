@@ -9,7 +9,7 @@ import {
 } from '../../scripts/scripts.js';
 
 import {
-  loadSections,
+  loadBlocks,
 } from '../../scripts/aem.js';
 
 /**
@@ -18,7 +18,7 @@ import {
  * @returns {HTMLElement} The root element of the fragment
  */
 export async function loadFragment(path) {
-  if (path) { //  && path.startsWith('/')
+  if (path && path.startsWith('/')) {
     const resp = await fetch(`${path}.plain.html`);
     if (resp.ok) {
       const main = document.createElement('main');
@@ -34,7 +34,7 @@ export async function loadFragment(path) {
       resetAttributeBase('source', 'srcset');
 
       decorateMain(main);
-      await loadSections(main);
+      await loadBlocks(main);
       return main;
     }
   }

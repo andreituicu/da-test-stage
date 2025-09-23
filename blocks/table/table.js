@@ -14,17 +14,13 @@ export default async function decorate(block) {
   const table = document.createElement('table');
   const thead = document.createElement('thead');
   const tbody = document.createElement('tbody');
-
-  const header = !block.classList.contains('no-header');
-  if (header) table.append(thead);
-  table.append(tbody);
-
+  table.append(thead, tbody);
   [...block.children].forEach((child, i) => {
     const row = document.createElement('tr');
-    if (header && i === 0) thead.append(row);
-    else tbody.append(row);
+    if (i) tbody.append(row);
+    else thead.append(row);
     [...child.children].forEach((col) => {
-      const cell = buildCell(header ? i : i + 1);
+      const cell = buildCell(i);
       cell.innerHTML = col.innerHTML;
       row.append(cell);
     });
