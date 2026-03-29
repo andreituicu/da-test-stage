@@ -126,18 +126,27 @@ function loadDelayed() {
   // load anything that can be postponed to the latest here
 }
 
-async function loadPage() {
+export async function loadPage() {
   await loadEager(document);
   await loadLazy(document);
   loadDelayed();
 }
 
 // Side-effects
-(async function loadDa() {
-  const daPreview = new URL(window.location.href).searchParams.get('dapreview');
-  if (!daPreview) return;
-  const origin = daPreview === 'local' ? 'http://localhost:3000' : 'https://lporg--da-live--adobe.aem.live';
-  import(`${origin}/scripts/dapreview.js`).then(({ default: daPreview }) => daPreview(loadPage));
+(function da() {
+  const { searchParams } = new URL(window.location.href);
+  const hasPreview = searchParams.has('dapreview');
+  if (hasPreview) import('../tools/da/da.js').then((mod) => mod.default(loadPage));
+  const hasQE = searchParams.has('quick-edit');
+  if (hasQE) import('../tools/quick-edit/quick-edit.js').then((mod) => mod.default());
+}());
+
+(async function loadSidekick() {
+  const getSk = () => document.querySelector('aem-sidekick');
+  const sk = getSk() || await new Promise((resolve) => {
+    document.addEventListener('sidekick-ready', () => resolve(getSk()));
+  });
+  if (sk) import('../tools/sidekick/sidekick.js').then((mod) => mod.default(sk));
 }());
 
 loadPage();
